@@ -20,14 +20,6 @@ COPY . .
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Generate Laravel application key (you can also set APP_KEY manually if needed)
-RUN php artisan key:generate
-
-# (Optional) Cache config, routes, and views
-RUN php artisan config:cache && \
-    php artisan route:cache && \
-    php artisan view:cache
-
 # Expose port 80 for Apache
 EXPOSE 80
 
