@@ -20,8 +20,12 @@ COPY . .
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Expose port 80 for Apache
 EXPOSE 80
 
-# Start Apache
-CMD ["apache2-foreground"]
+# Start Laravel setup + Apache
+CMD ["/entrypoint.sh"]
