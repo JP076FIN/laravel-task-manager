@@ -12,57 +12,49 @@ class TaskController extends Controller
      */
     public function index()
     {
-        $tasks = Task::all();
-        return view('tasks.index', compact('tasks'));
+        $tasks = \App\Models\Task::all();
+        return view('dashboard', compact('tasks'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
         return view('tasks.create');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
+
     public function store(Request $request)
     {
-        Task::create($request->validate(['title' => 'required']));
-        return redirect()->route('tasks.index');
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        Task::create($request->all());
+        return redirect()->route('dashboard');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Task $task)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(Task $task)
     {
         return view('tasks.edit', compact('task'));
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
+
     public function update(Request $request, Task $task)
     {
-        $task->update($request->validate(['title' => 'required']));
-        return redirect()->route('tasks.index');
+        $data = $request->all();
+
+        // Checkbox fix
+        $data['completed'] = $request->has('completed');
+
+        $task->update($data);
+
+        return redirect()->route('dashboard');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
+
     public function destroy(Task $task)
     {
-        //
+        $task->delete();
+        return redirect()->route('dashboard');
     }
 }
