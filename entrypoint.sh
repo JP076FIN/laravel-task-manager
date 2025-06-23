@@ -1,23 +1,24 @@
 #!/bin/bash
 
-# Inject .env from environment variable if not already present
+# Inject .env from Render Secret if not already present
 if [ ! -f .env ] && [ ! -z "$LARAVEL_ENV_FILE" ]; then
     echo "$LARAVEL_ENV_FILE" > .env
 fi
 
 # Permissions
 chmod -R 775 storage bootstrap/cache
+chown -R www-data:www-data storage bootstrap/cache
 
-# Generate key if it's still empty
+# Generate key if empty
 if grep -q "APP_KEY=$" .env; then
-    php artisan key:generate
+    su -s /bin/bash www-data -c "php artisan key:generate"
 fi
 
-# Cache and optimize Laravel
-php artisan config:clear
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
+# Laravel caches
+su -s /bin/bash www-data -c "php artisan config:clear"
+su -s /bin/bash www-data -c "php artisan config:cache"
+su -s /bin/bash www-data -c "php artisan route:cache"
+su -s /bin/bash www-data -c "php artisan view:cache"
 
-# Start Apache server
+# Start Apache
 exec apache2-foreground

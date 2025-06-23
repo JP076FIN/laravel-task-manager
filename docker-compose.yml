@@ -15,16 +15,17 @@ services:
             - laravel
 
     db:
-        image: mysql:8.0
+        image: postgres:13
+        container_name: pg_db
+        restart: always
         ports:
-            - "3306:3306"
-        volumes:
-            - db_data:/var/lib/mysql
+            - "5432:5432"
         environment:
-            MYSQL_DATABASE: laravel
-            MYSQL_ROOT_PASSWORD: root
-            MYSQL_USER: laravel
-            MYSQL_PASSWORD: secret
+            POSTGRES_DB: laravel
+            POSTGRES_USER: laravel
+            POSTGRES_PASSWORD: secret
+        volumes:
+            - db_data:/var/lib/postgresql/data
         networks:
             - laravel
 

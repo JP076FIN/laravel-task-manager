@@ -3,8 +3,8 @@ FROM php:8.2-apache
 # Enable Apache rewrite module and install system dependencies
 RUN a2enmod rewrite && \
     apt-get update && apt-get install -y \
-    libpng-dev libonig-dev libxml2-dev zip unzip git curl npm && \
-    docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd && \
+        libpng-dev libonig-dev libxml2-dev libpq-dev zip unzip git curl npm && \
+        docker-php-ext-install pdo pdo_pgsql pgsql pdo_mysql mbstring exif pcntl bcmath gd && \
     sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/public|g' /etc/apache2/sites-available/000-default.conf && \
     sed -i 's|<Directory /var/www/>|<Directory /var/www/html/public>|g' /etc/apache2/apache2.conf
 
@@ -16,6 +16,10 @@ WORKDIR /var/www/html
 
 # Copy application source code
 COPY . .
+
+# Set correct permissions for Laravel storage and cache
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
