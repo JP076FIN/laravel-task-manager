@@ -3,21 +3,23 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
-# Inject .env from Render Secret if not already present
-# This part is good for handling sensitive .env variables
-if [ ! -f .env ] && [ ! -z "$LARAVEL_ENV_FILE" ]; then
+# --- .env File Injection ---
+echo "Attempting to inject .env file from LARAVEL_ENV_FILE secret..."
+if [ ! -z "$LARAVEL_ENV_FILE" ]; then
     echo "$LARAVEL_ENV_FILE" > .env
-    echo ".env file created from LARAVEL_ENV_FILE secret."
+    echo ".env file created/overwritten successfully."
 else
-    echo ".env file already exists or LARAVEL_ENV_FILE secret is empty. Skipping injection."
+    echo "Error: LARAVEL_ENV_FILE secret is empty or not set. Cannot inject .env file."
+    echo "Make sure LARAVEL_ENV_FILE secret is configured correctly on Render with your .env content."
+    exit 1 # Exit if the critical .env cannot be injected
 fi
 
-# Permissions (ensure these are applied early)
+# --- Permissions ---
 echo "Setting permissions for storage and bootstrap/cache..."
 chmod -R 775 storage bootstrap/cache
 chown -R www-data:www-data storage bootstrap/cache
 
-# Generate key if empty (run as www-data)
+# --- APP_KEY Generation ---
 echo "Checking APP_KEY..."
 if grep -q "APP_KEY=$" .env; then
     echo "Generating new APP_KEY..."
@@ -26,26 +28,49 @@ else
     echo "APP_KEY already set."
 fi
 
-# --- Database Connection and Migrations ---
+# --- Database Connection Check (with retry limit and detailed output) ---
+# pg_isready needs DB_HOST, DB_PORT, DB_USERNAME as direct shell variables.
+# We source the .env file to make them available for this check.
+echo "Preparing database connection details for pg_isready..."
+set -a # automatically export all variables to subshells
+source .env # read .env into current shell variables
+set +a # stop automatically exporting variables
 
-# Wait for the database to be ready
-# Requires 'postgresql-client' in your Dockerfile for pg_isready
-# This relies on DB_HOST, DB_PORT, DB_USERNAME being available as environment variables.
-# Even if you use DATABASE_URL, you often need these individual ones for pg_isready.
+# Define max retries and current retry counter
+MAX_RETRIES=5 # Set to a low number for faster debugging
+RETRY_COUNT=0
+
+# --- DEBUGGING: ECHO THE VARIABLES BEING USED ---
+echo "DEBUG: DB_HOST is: '$DB_HOST'"
+echo "DEBUG: DB_PORT is: '$DB_PORT'"
+echo "DEBUG: DB_USERNAME is: '$DB_USERNAME'"
+# --- END DEBUGGING ---
+
 echo "Waiting for database to be ready..."
-until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" > /dev/null 2>&1; do
-  echo "Database is unavailable - sleeping"
-  sleep 2
-done
-echo "Database is ready!"
+until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" || [ "$RETRY_COUNT" -ge "$MAX_RETRIES" ]; do
+  echo "Database is unavailable - sleeping (attempt $((RETRY_COUNT + 1))/$MAX_RETRIES)"
 
-# Run database migrations (run as www-data)
+  # --- DEBUGGING: SHOW RAW PG_ISREADY OUTPUT ---
+  echo "DEBUG: Raw pg_isready output for attempt $((RETRY_COUNT + 1)):"
+  pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" # <-- Removed > /dev/null 2>&1
+  # --- END DEBUGGING ---
+
+  sleep 2
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+done
+
+if [ "$RETRY_COUNT" -ge "$MAX_RETRIES" ]; then
+  echo "Error: Database did not become ready after $MAX_RETRIES attempts. Exiting."
+  exit 1 # Exit with an error if database is not ready
+else
+  echo "Database is ready!"
+fi
+
+# --- Database Migrations ---
 echo "Running database migrations..."
 su -s /bin/bash www-data -c "php artisan migrate --force"
 
 # --- Laravel Caching ---
-# Run these AFTER migrations, as migrations might change the schema
-# that cached configurations rely on.
 echo "Clearing and caching configuration..."
 su -s /bin/bash www-data -c "php artisan config:clear"
 su -s /bin/bash www-data -c "php artisan config:cache"
