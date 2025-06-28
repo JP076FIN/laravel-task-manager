@@ -13,7 +13,7 @@ class TaskController extends Controller
     public function index()
     {
         $tasks = \App\Models\Task::all();
-        return view('dashboard', compact('tasks'));
+        return view('home', compact('tasks'));
     }
 
     public function create()
@@ -30,7 +30,7 @@ class TaskController extends Controller
         ]);
 
         Task::create($request->all());
-        return redirect()->route('dashboard');
+        return redirect()->route('home');
     }
 
     public function edit(Task $task)
@@ -48,13 +48,13 @@ class TaskController extends Controller
 
         $task->update($data);
 
-        return redirect()->route('dashboard');
+        return redirect()->route('home');
     }
 
 
     public function destroy(Task $task)
     {
         $task->delete();
-        return redirect()->route('dashboard');
+        return redirect()->route('home');
     }
 }
