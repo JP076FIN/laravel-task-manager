@@ -50,7 +50,7 @@
                             Create Task
                         </button>
 
-                        <a href="{{ route('dashboard') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                        <a href="{{ route('home') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
                             Cancel
                         </a>
                     </div>
